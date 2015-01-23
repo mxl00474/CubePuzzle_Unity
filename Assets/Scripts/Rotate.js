@@ -51,8 +51,8 @@ function Update () {
 		var ray = Camera.main.ScreenPointToRay (Input.mousePosition);
 
 		//Flick Start
-		if(Input.GetMouseButtonDown(0)) {
-		//if(Input.GetTouch(0).phase == TouchPhase.Began) {
+		//if(Input.GetMouseButtonDown(0)) {
+		if(Input.GetTouch(0).phase == TouchPhase.Began) {
 
 			if (Physics.Raycast (ray, hit) && hit.transform.tag == "Plane") {
 
@@ -71,8 +71,8 @@ function Update () {
 		}
 
 		//flick End
-		if(Input.GetMouseButtonUp(0)) {
-		//if(Input.GetTouch(0).phase == TouchPhase.Ended) {
+		//if(Input.GetMouseButtonUp(0)) {
+		if(Input.GetTouch(0).phase == TouchPhase.Ended) {
 
 			// Mouse move vector (in screen space)
 			var dx : float = Input.mousePosition.x - sx;
