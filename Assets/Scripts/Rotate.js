@@ -2,6 +2,8 @@
 
 // Rotation Target
 var targetObject : GameObject;
+var cameraPivot : GameObject;
+
 private var rotatetarget : Transform;
 private var targetCube : Transform;
 
@@ -23,9 +25,15 @@ private var targetAxis : Vector3;
 private var sx:float;
 private var sy:float;
 
-// For rotation
+// For Cube rotation
 private var rotateCounter : int;
 private var sign : float;
+
+// Axis for the camera
+private var camera_up : Vector3;
+private var camera_right : Vector3;
+private var camera_x : float;
+private var camera_y : float;
 
 private var isTouchOnPlane : boolean; // True when touch on the planes
 private var isRotation : boolean; // True during the roration
@@ -43,7 +51,7 @@ function Start () {
 
 	// Put all cube to cubes
 	if (cubes == null)
-		cubes = GameObject.FindGameObjectsWithTag ("Cube");
+		cubes = GameObject.FindGameObjectsWithTag ("Cube");		
 }
 
 function Update () {
@@ -59,31 +67,36 @@ function Update () {
 		if(Input.GetMouseButtonDown(0)) {
 		//if(Input.GetTouch(0).phase == TouchPhase.Began) {					
 
-			if (Physics.Raycast (ray, hit) && hit.transform.tag == "Plane") {
-			
-				// Flick start when touch the planes				
+			if (Physics.Raycast (ray, hit) && hit.transform.tag == "Plane") { // Flick start when touch the planes			
+								
 				isTouchOnPlane = true;
 				Debug.Log(hit.transform.name);
+
+				// Store the mouse position
+				sx = Input.mousePosition.x;
+				sy = Input.mousePosition.y;
 				
 				// Up, axis1, axis2 of the panel (in world space)
 				up = hit.transform.up;
 				axis1 = hit.transform.forward;
 				axis2 = hit.transform.right;
 
-				// Store the mouse position
-				sx = Input.mousePosition.x;
-				sy = Input.mousePosition.y;
-
 				// Set the target Cube
 				targetCube = hit.transform.parent;
 				
-			} else if(!Physics.Raycast (ray, hit)) {
-				// Start drag otherwise
+			} else if(!Physics.Raycast (ray, hit) && !isDragStart) { // Start drag when touching nothing
+				
+				isDragStart	= true;
+				
+				camera_up = cameraPivot.transform.up;
+				camera_right = cameraPivot.transform.right;				
+				camera_x = Input.mousePosition.x;
+				camera_y = Input.mousePosition.y;
 			}
 		}
 
 		//flick End
-		if(Input.GetMouseButtonUp(0) && isTouchOnPlane) {
+		if(Input.GetMouseButtonUp(0) && isTouchOnPlane	) {
 		//if(Input.GetTouch(0).phase == TouchPhase.Ended) {
 
 			// Mouse move vector (in screen space)
@@ -118,8 +131,25 @@ function Update () {
 		}
 
 		//Drag
-		if(Input.GetMouseButton(0)) {
+		if(Input.GetMouseButton(0) && isDragStart) {
+		
+			// cdx and cdy are the difference from the previous mouse point
+			var cdx : float = Input.mousePosition.x - camera_x;
+			var cdy : float = Input.mousePosition.y - camera_y;
+
+			// Reserve the current mouse position for the next drag
+			camera_x = Input.mousePosition.x;
+			camera_y = Input.mousePosition.y;
 			
+			// Execute rotation
+			cameraPivot.transform.Rotate(camera_up, cdx, Space.World);
+			cameraPivot.transform.Rotate(camera_right, cdy, Space.World);
+
+		}
+		
+		//Drag end
+		if (Input.GetMouseButtonUp(0) && isDragStart){
+			isDragStart = false;
 		}
 	}
 }
