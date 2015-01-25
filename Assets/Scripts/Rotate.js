@@ -27,14 +27,19 @@ private var sy:float;
 private var rotateCounter : int;
 private var sign : float;
 
+private var isTouchOnPlane : boolean; // True when touch on the planes
 private var isRotation : boolean; // True during the roration
+private var isDragStart : boolean; // True when starting drug
 
 // Cubes
 private var cube : GameObject;
 private var cubes;
 
 function Start () {
+	//Initialize the boolean flags
+	isTouchOnPlane = false;
 	isRotation = false;
+	isDragStart = false;
 
 	// Put all cube to cubes
 	if (cubes == null)
@@ -50,12 +55,16 @@ function Update () {
 
 		var ray = Camera.main.ScreenPointToRay (Input.mousePosition);
 
-		//Flick Start
-		//if(Input.GetMouseButtonDown(0)) {
-		if(Input.GetTouch(0).phase == TouchPhase.Began) {
+		// Mouse / touch down
+		if(Input.GetMouseButtonDown(0)) {
+		//if(Input.GetTouch(0).phase == TouchPhase.Began) {					
 
 			if (Physics.Raycast (ray, hit) && hit.transform.tag == "Plane") {
-
+			
+				// Flick start when touch the planes				
+				isTouchOnPlane = true;
+				Debug.Log(hit.transform.name);
+				
 				// Up, axis1, axis2 of the panel (in world space)
 				up = hit.transform.up;
 				axis1 = hit.transform.forward;
@@ -67,12 +76,15 @@ function Update () {
 
 				// Set the target Cube
 				targetCube = hit.transform.parent;
+				
+			} else if(!Physics.Raycast (ray, hit)) {
+				// Start drag otherwise
 			}
 		}
 
 		//flick End
-		//if(Input.GetMouseButtonUp(0)) {
-		if(Input.GetTouch(0).phase == TouchPhase.Ended) {
+		if(Input.GetMouseButtonUp(0) && isTouchOnPlane) {
+		//if(Input.GetTouch(0).phase == TouchPhase.Ended) {
 
 			// Mouse move vector (in screen space)
 			var dx : float = Input.mousePosition.x - sx;
@@ -101,15 +113,14 @@ function Update () {
 			//Debug.Log("Axsis: X=" + targetAxis.x + ", Y=" + targetAxis.y + ", Z=" + targetAxis.z 
 			//			+ ", sign=" + sign + ", dot1=" + dot1 + ", dot2=" + dot2);
 
-			// Set the rotation flag to true;
+			isTouchOnPlane = false;
 			initRotate();
 		}
 
-		/*
 		//Drag
 		if(Input.GetMouseButton(0)) {
+			
 		}
-		*/
 	}
 }
 
