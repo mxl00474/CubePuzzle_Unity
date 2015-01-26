@@ -40,14 +40,17 @@ private var isRotation : boolean; // True during the roration
 private var isDragStart : boolean; // True when starting drug
 
 // Cubes
-private var cube : GameObject;
-private var cubes;
+private var cubes : GameObject[];
+
+// GUI
+private var isMinimize : boolean;
 
 function Start () {
 	//Initialize the boolean flags
 	isTouchOnPlane = false;
 	isRotation = false;
 	isDragStart = false;
+	isMinimize = false;	
 
 	// Put all cube to cubes
 	if (cubes == null)
@@ -87,6 +90,7 @@ function Update () {
 			} else if(!Physics.Raycast (ray, hit) && !isDragStart) { // Start drag when touching nothing
 				
 				isDragStart	= true;
+				Debug.Log("Drag start");
 				
 				camera_up = cameraPivot.transform.up;
 				camera_right = cameraPivot.transform.right;				
@@ -133,6 +137,8 @@ function Update () {
 		//Drag
 		if(Input.GetMouseButton(0) && isDragStart) {
 		
+			Debug.Log("Dragging");
+			
 			// cdx and cdy are the difference from the previous mouse point
 			var cdx : float = Input.mousePosition.x - camera_x;
 			var cdy : float = Input.mousePosition.y - camera_y;
@@ -150,6 +156,7 @@ function Update () {
 		//Drag end
 		if (Input.GetMouseButtonUp(0) && isDragStart){
 			isDragStart = false;
+			Debug.Log("Drag end");
 		}
 	}
 }
@@ -237,4 +244,51 @@ function initRotate(){
 		else
 			c.transform.parent = null;
 	}
+}
+
+/**
+Menu button GUI
+**/
+function OnGUI () {
+	if (isMinimize) {
+		if (GUI.Button (Rect (10,10,80,20), "Menu")) {
+			isMinimize = false;
+		}	
+	} else {	
+		// Make a background box
+		GUI.Box (Rect (10,10,100,120), "Menu");
+
+		// Make the first button. If it is pressed, Application.Loadlevel (1) will be executed
+		if (GUI.Button (Rect (20,40,80,20), "Shuffle")) {
+			shuffle();
+		}
+
+		// Make the second button.
+		if (GUI.Button (Rect (20,70,80,20), "Level 2")) {
+			Application.LoadLevel (2);
+		}
+		
+		// Make the third button.
+		if (GUI.Button (Rect (20,100,80,20), "Hide Menu")) {
+			isMinimize = true;
+		}
+	}
+}
+
+/**
+Shuffle cubes
+**/
+function shuffle () {
+	var num : int = Random.value * cubes.Length;	
+	
+	Debug.Log("# of cubes = " + cubes.Length);
+	Debug.Log("target num = " + num);
+	
+	targetCube = cubes[num].transform;
+	targetAxis = Vector3(0,0,1);
+	sign = 1;
+	
+	initRotate();
+	exeRotate();
+	isDragStart = false;
 }
