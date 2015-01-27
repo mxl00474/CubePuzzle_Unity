@@ -264,8 +264,8 @@ function OnGUI () {
 		}
 
 		// Make the second button.
-		if (GUI.Button (Rect (20,70,80,20), "Level 2")) {
-			Application.LoadLevel (2);
+		if (GUI.Button (Rect (20,70,80,20), "Reset")) {
+			resetCube();
 		}
 		
 		// Make the third button.
@@ -279,16 +279,39 @@ function OnGUI () {
 Shuffle cubes
 **/
 function shuffle () {
-	var num : int = Random.value * cubes.Length;	
+
+	for (var i : int = 0 ; i < 10 ; i++){
+		var num : int = Random.value * cubes.Length;	
+		targetCube = cubes[num].transform;
+		
+		var r : float = Random.value;
+		if (r > 0.66)
+			targetAxis = Vector3.right;
+		else if (r > 0.33)
+			targetAxis = Vector3.forward;
+		else
+			targetAxis = Vector3.up;
+		
+		sign = Random.value > 0.5 ? 1 : -1;
+		
+		initRotate();
+		rotatetarget.Rotate(targetAxis, sign * 90, Space.World);
+		isRotation = false;
+	}
 	
-	Debug.Log("# of cubes = " + cubes.Length);
-	Debug.Log("target num = " + num);
-	
-	targetCube = cubes[num].transform;
-	targetAxis = Vector3(0,0,1);
-	sign = 1;
-	
-	initRotate();
-	exeRotate();
 	isDragStart = false;
 }
+
+/**
+Reset cubes to the original ImagePosition
+**/
+function resetCube(){
+	for (var c : GameObject in cubes){
+		c.transform.rotation = Quaternion.LookRotation(Vector3.zero);
+	}
+}
+
+
+
+
+
