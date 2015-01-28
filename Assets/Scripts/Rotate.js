@@ -3,6 +3,7 @@
 // Rotation Target
 var targetObject : GameObject;
 var cameraPivot : GameObject;
+var debugFlag : boolean;
 
 private var rotatetarget : Transform;
 private var targetCube : Transform;
@@ -10,6 +11,7 @@ private var targetCube : Transform;
 // Rotate speed
 var rotateSpeed : float;
 var rotateCount : int;
+var cameraRotateSpeed : float;
 
 // Raycast SetUp:
 var hit : RaycastHit;
@@ -45,7 +47,8 @@ private var cubes : GameObject[];
 // GUI
 private var isMinimize : boolean;
 
-function Start () {
+function Start () {	
+
 	//Initialize the boolean flags
 	isTouchOnPlane = false;
 	isRotation = false;
@@ -54,7 +57,7 @@ function Start () {
 
 	// Put all cube to cubes
 	if (cubes == null)
-		cubes = GameObject.FindGameObjectsWithTag ("Cube");		
+		cubes = GameObject.FindGameObjectsWithTag ("Cube");			
 }
 
 function Update () {
@@ -67,13 +70,13 @@ function Update () {
 		var ray = Camera.main.ScreenPointToRay (Input.mousePosition);
 
 		// Mouse / touch down
-		if(Input.GetMouseButtonDown(0)) {
-		//if(Input.GetTouch(0).phase == TouchPhase.Began) {					
+		if ((debugFlag && Input.GetMouseButtonDown(0)) ||
+			 (!debugFlag && Input.GetTouch(0).phase == TouchPhase.Began)) {
 
 			if (Physics.Raycast (ray, hit) && hit.transform.tag == "Plane") { // Flick start when touch the planes			
 								
 				isTouchOnPlane = true;
-				Debug.Log(hit.transform.name);
+				if (debugFlag) Debug.Log(hit.transform.name);
 
 				// Store the mouse position
 				sx = Input.mousePosition.x;
@@ -90,7 +93,7 @@ function Update () {
 			} else if(!Physics.Raycast (ray, hit) && !isDragStart) { // Start drag when touching nothing
 				
 				isDragStart	= true;
-				Debug.Log("Drag start");
+				if (debugFlag) Debug.Log("Drag start");
 				
 				camera_up = cameraPivot.transform.up;
 				camera_right = cameraPivot.transform.right;				
@@ -100,8 +103,8 @@ function Update () {
 		}
 
 		//flick End
-		if(Input.GetMouseButtonUp(0) && isTouchOnPlane	) {
-		//if(Input.GetTouch(0).phase == TouchPhase.Ended) {
+		if((debugFlag && Input.GetMouseButtonUp(0) && isTouchOnPlane) || 
+			(!debugFlag && Input.GetTouch(0).phase == TouchPhase.Ended && isTouchOnPlane)) {
 
 			// Mouse move vector (in screen space)
 			var dx : float = Input.mousePosition.x - sx;
@@ -127,17 +130,19 @@ function Update () {
 				sign = Mathf.Sign(dot1);
 			}
 
-			//Debug.Log("Axsis: X=" + targetAxis.x + ", Y=" + targetAxis.y + ", Z=" + targetAxis.z 
-			//			+ ", sign=" + sign + ", dot1=" + dot1 + ", dot2=" + dot2);
+			if (debugFlag) 
+				Debug.Log("Axsis: X=" + targetAxis.x + ", Y=" + targetAxis.y + ", Z=" + targetAxis.z 
+						+ ", sign=" + sign + ", dot1=" + dot1 + ", dot2=" + dot2);
 
 			isTouchOnPlane = false;
 			initRotate();
 		}
 
 		//Drag
-		if(Input.GetMouseButton(0) && isDragStart) {
+		if((debugFlag && Input.GetMouseButton(0) && isDragStart) ||
+			(!debugFlag && Input.GetTouch(0).phase == TouchPhase.Moved && isDragStart)){
 		
-			Debug.Log("Dragging");
+			if (debugFlag) Debug.Log("Dragging");
 			
 			// cdx and cdy are the difference from the previous mouse point
 			var cdx : float = Input.mousePosition.x - camera_x;
@@ -148,15 +153,16 @@ function Update () {
 			camera_y = Input.mousePosition.y;
 			
 			// Execute rotation
-			cameraPivot.transform.Rotate(camera_up, cdx, Space.World);
-			cameraPivot.transform.Rotate(camera_right, cdy, Space.World);
+			cameraPivot.transform.Rotate(camera_up, cdx * cameraRotateSpeed, Space.World);
+			cameraPivot.transform.Rotate(camera_right, cdy * cameraRotateSpeed, Space.World);
 
 		}
 		
 		//Drag end
-		if (Input.GetMouseButtonUp(0) && isDragStart){
+		if ((debugFlag && Input.GetMouseButtonUp(0) && isDragStart) ||
+			(!debugFlag && Input.GetTouch(0).phase == TouchPhase.Ended)){
 			isDragStart = false;
-			Debug.Log("Drag end");
+			if (debugFlag) Debug.Log("Drag end");
 		}
 	}
 }
@@ -228,7 +234,7 @@ function initRotate(){
 	var ty = tv.y * av.y;
 	var tz = tv.z * av.z;
 
-	Debug.Log("TX=" + tx + ",TY=" + ty + ",TZ=" + tz);
+	if (debugFlag) Debug.Log("TX=" + tx + ",TY=" + ty + ",TZ=" + tz);
 
 	for (var c : GameObject in cubes){
 
@@ -237,7 +243,7 @@ function initRotate(){
 		var y = cv.y * av.y;
 		var z = cv.z * av.z;
 
-		Debug.Log("X=" + x + ",Y=" + y + ",Z=" + z);
+		if (debugFlag) Debug.Log("X=" + x + ",Y=" + y + ",Z=" + z);
 
 		if (x == tx && y == ty && z == tz)
 			c.transform.parent = targetObject.transform;
@@ -250,28 +256,90 @@ function initRotate(){
 Menu button GUI
 **/
 function OnGUI () {
+
+	//Initialize GUI style
+	var styleUp : GUIStyle = new GUIStyle(GUI.skin.button);
+	var styleCenter : GUIStyle = new GUIStyle(GUI.skin.button);
+	
+	styleUp.alignment = TextAnchor.UpperCenter;
+	//styleUp.fontSize = 24;
+	//styleCenter.fontSize = 24;
+	
+	//screen size
+	var sw : float = Screen.width;
+	var sh : float = Screen.height;
+	
+	// Menu button
 	if (isMinimize) {
-		if (GUI.Button (Rect (10,10,80,20), "Menu")) {
+		if (GUI.Button (Rect (10,10,120,20), "Menu",styleCenter)) {
 			isMinimize = false;
 		}	
 	} else {	
 		// Make a background box
-		GUI.Box (Rect (10,10,100,120), "Menu");
+		GUI.Box (Rect (10,10,120,120), "Menu", styleUp);
 
 		// Make the first button. If it is pressed, Application.Loadlevel (1) will be executed
-		if (GUI.Button (Rect (20,40,80,20), "Shuffle")) {
+		if (GUI.Button (Rect (20,40,100,20), "Shuffle",styleCenter)) {
 			shuffle();
 		}
 
 		// Make the second button.
-		if (GUI.Button (Rect (20,70,80,20), "Reset")) {
+		if (GUI.Button (Rect (20,70,100,20), "Reset",styleCenter)) {
 			resetCube();
 		}
 		
 		// Make the third button.
-		if (GUI.Button (Rect (20,100,80,20), "Hide Menu")) {
+		if (GUI.Button (Rect (20,100,100,20), "Hide Menu",styleCenter)) {
 			isMinimize = true;
 		}
+	}
+	
+	// Rotate button
+	if (GUI.Button(Rect(sw-115,sh-170,50,50),"UP",styleCenter) && !isRotation) {
+		targetAxis = Vector3.forward;
+		sign = 1;
+		initRotateAllCubes();
+		exeRotate();
+		isDragStart = false;
+	}
+	if (GUI.Button(Rect(sw-170,sh-115,50,50),"LEFT",styleCenter) && !isRotation) {
+		targetAxis = Vector3.up;
+		sign = 1;
+		initRotateAllCubes();
+		exeRotate();
+		isDragStart = false;
+	}
+	if (GUI.Button(Rect(sw-60,sh-115,50,50),"RIGHT",styleCenter) && !isRotation) {
+		targetAxis = Vector3.up;
+		sign = -1;
+		initRotateAllCubes();
+		exeRotate();
+		isDragStart = false;
+	}
+	if (GUI.Button(Rect(sw-115,sh-60,50,50),"DOWN",styleCenter) && !isRotation) {
+		targetAxis = Vector3.forward;
+		sign = -1;
+		initRotateAllCubes();
+		exeRotate();
+		isDragStart = false;
+	}
+}
+
+/**
+Select all cubes
+**/
+function initRotateAllCubes(){
+	// Initialize rotate
+	isRotation = true;
+	rotateCounter = 0;
+
+	// Create the target Object
+	rotatetarget = targetObject.transform;
+	rotatetarget.position = Vector3.zero;
+	
+	// Put all cubes to the rotate target
+	for (var c : GameObject in cubes){
+		c.transform.parent = targetObject.transform;
 	}
 }
 
