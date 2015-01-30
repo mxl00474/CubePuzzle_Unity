@@ -1,5 +1,7 @@
 ﻿#pragma strict
 
+import System.Collections.Generic;
+
 // Rotation Target
 var targetObject : GameObject;
 var cameraPivot : GameObject;
@@ -44,6 +46,9 @@ private var isDragStart : boolean; // True when starting drug
 // Cubes
 private var cubes : GameObject[];
 
+// Stack to save the operation history
+private var stack : Stack;
+
 // GUI
 private var isMinimize : boolean;
 
@@ -57,7 +62,10 @@ function Start () {
 
 	// Put all cube to cubes
 	if (cubes == null)
-		cubes = GameObject.FindGameObjectsWithTag ("Cube");			
+		cubes = GameObject.FindGameObjectsWithTag ("Cube");
+	
+	// Initialize the stack
+	stack = new Stack();		
 }
 
 function Update () {
@@ -89,6 +97,11 @@ function Update () {
 
 				// Set the target Cube
 				targetCube = hit.transform.parent;
+				
+				if (debugFlag) {
+					var test : CubeProperty = targetCube.GetComponent("CubeProperty");
+					Debug.Log("cubeName=" + test.CubeName);
+				}
 				
 			} else if(!Physics.Raycast (ray, hit) && !isDragStart) { // Start drag when touching nothing
 				
@@ -130,12 +143,18 @@ function Update () {
 				sign = Mathf.Sign(dot1);
 			}
 
+			// Push the rotation info
+			var cubeProperty : CubeProperty = targetCube.GetComponent("CubeProperty");
+			pushRotateInfo(cubeProperty.CubeName, targetAxis, sign);
+
 			if (debugFlag) 
 				Debug.Log("Axsis: X=" + targetAxis.x + ", Y=" + targetAxis.y + ", Z=" + targetAxis.z 
 						+ ", sign=" + sign + ", dot1=" + dot1 + ", dot2=" + dot2);
 
 			isTouchOnPlane = false;
-			initRotate();
+			
+			//Initialize rotation
+			initRotate();			
 		}
 
 		//Drag
@@ -253,6 +272,69 @@ function initRotate(){
 }
 
 /**
+Push the rotate info to the stack
+**/
+function pushRotateInfo(_cube : String, _axis : Vector3, _sign : float) {
+
+	var rotateInfo : RotateInfo = new RotateInfo();
+
+	rotateInfo.cube = _cube;
+	rotateInfo.sign = _sign;
+	rotateInfo.axis = _axis;
+	
+	stack.Push(rotateInfo);
+}
+
+/**
+Pop the rotate info from the stack
+**/
+function popRotateInfo(){
+	if (stack.Count == 0) {
+		return null;
+	} else {
+		var rotateInfo : RotateInfo = stack.Pop();
+		return rotateInfo;
+	}
+}
+
+/**
+Revert rotation
+**/
+function revertRotate(){
+	var rotateInfo : RotateInfo = popRotateInfo();
+	
+	// If the stack is empty, do nothing.
+	if (rotateInfo == null) return;
+	
+	var cubeName : String = rotateInfo.cube;
+	targetAxis = rotateInfo.axis;
+	sign = rotateInfo.sign * -1.0;
+	
+	if (cubeName == "all") {
+		initRotateAllCubes();
+	}
+	else {
+		targetCube = findCubeByName(cubeName);	
+		if (targetCube == null) return;
+		initRotate();
+	}
+	
+	exeRotate();
+}
+
+/**
+ Find cube by name
+**/
+function findCubeByName(_name : String) {
+	for (var c : GameObject in cubes){
+		var cubeProperty : CubeProperty = c.GetComponent("CubeProperty");
+		if (cubeProperty.CubeName == _name)
+			return c.transform;
+	}
+	return null;
+}
+	
+/**
 Menu button GUI
 **/
 function OnGUI () {
@@ -298,6 +380,8 @@ function OnGUI () {
 	if (GUI.Button(Rect(sw-115,sh-170,50,50),"UP",styleCenter) && !isRotation) {
 		targetAxis = Vector3.forward;
 		sign = 1;
+		
+		pushRotateInfo("all", targetAxis, sign);
 		initRotateAllCubes();
 		exeRotate();
 		isDragStart = false;
@@ -305,6 +389,8 @@ function OnGUI () {
 	if (GUI.Button(Rect(sw-170,sh-115,50,50),"LEFT",styleCenter) && !isRotation) {
 		targetAxis = Vector3.up;
 		sign = 1;
+		
+		pushRotateInfo("all", targetAxis, sign);
 		initRotateAllCubes();
 		exeRotate();
 		isDragStart = false;
@@ -312,6 +398,8 @@ function OnGUI () {
 	if (GUI.Button(Rect(sw-60,sh-115,50,50),"RIGHT",styleCenter) && !isRotation) {
 		targetAxis = Vector3.up;
 		sign = -1;
+		
+		pushRotateInfo("all", targetAxis, sign);
 		initRotateAllCubes();
 		exeRotate();
 		isDragStart = false;
@@ -319,8 +407,16 @@ function OnGUI () {
 	if (GUI.Button(Rect(sw-115,sh-60,50,50),"DOWN",styleCenter) && !isRotation) {
 		targetAxis = Vector3.forward;
 		sign = -1;
+
+		pushRotateInfo("all", targetAxis, sign);
 		initRotateAllCubes();
 		exeRotate();
+		isDragStart = false;
+	}
+	
+	// Revert button
+	if (GUI.Button(Rect(20,sh-115,50,50),"Revert",styleCenter) && !isRotation) {
+		revertRotate();
 		isDragStart = false;
 	}
 }
@@ -362,6 +458,11 @@ function shuffle () {
 		
 		sign = Random.value > 0.5 ? 1 : -1;
 		
+		// Push the rotation info
+		var cubeProperty : CubeProperty = targetCube.GetComponent("CubeProperty");
+		pushRotateInfo(cubeProperty.CubeName, targetAxis, sign);
+
+		// Execute rotation
 		initRotate();
 		rotatetarget.Rotate(targetAxis, sign * 90, Space.World);
 		isRotation = false;
@@ -374,9 +475,13 @@ function shuffle () {
 Reset cubes to the original ImagePosition
 **/
 function resetCube(){
+	//Change the direction of all cubes
 	for (var c : GameObject in cubes){
 		c.transform.rotation = Quaternion.LookRotation(Vector3.zero);
 	}
+	
+	//Clear rotate Stack
+	stack.Clear();
 }
 
 
