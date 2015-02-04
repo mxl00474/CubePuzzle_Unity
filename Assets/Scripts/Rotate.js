@@ -5,6 +5,7 @@ import System.Collections.Generic;
 // Rotation Target
 var targetObject : GameObject;
 var cameraPivot : GameObject;
+var menuW : GameObject;
 var debugFlag : boolean;
 
 private var rotatetarget : Transform;
@@ -51,6 +52,7 @@ private var stack : Stack;
 
 // GUI
 private var isMinimize : boolean;
+private var isMenuActive : boolean;
 
 function Start () {	
 
@@ -59,13 +61,17 @@ function Start () {
 	isRotation = false;
 	isDragStart = false;
 	isMinimize = false;	
+	isMenuActive = false;
 
 	// Put all cube to cubes
 	if (cubes == null)
 		cubes = GameObject.FindGameObjectsWithTag ("Cube");
 	
 	// Initialize the stack
-	stack = new Stack();		
+	stack = new Stack();
+	
+	// Hide Menu Window
+	menuW.SetActive(isMenuActive);
 }
 
 function Update () {
@@ -81,7 +87,7 @@ function Update () {
 		if ((debugFlag && Input.GetMouseButtonDown(0)) ||
 			 (!debugFlag && Input.GetTouch(0).phase == TouchPhase.Began)) {
 
-			if (Physics.Raycast (ray, hit) && hit.transform.tag == "Plane") { // Flick start when touch the planes			
+			if (Physics.Raycast (ray, hit) && hit.transform.tag == "Plane" && !isMenuActive) { // Flick start when touch the planes			
 								
 				isTouchOnPlane = true;
 				if (debugFlag) Debug.Log(hit.transform.name);
@@ -333,92 +339,78 @@ function findCubeByName(_name : String) {
 	}
 	return null;
 }
-	
+
 /**
-Menu button GUI
+Click Revert
 **/
-function OnGUI () {
-
-	//Initialize GUI style
-	var styleUp : GUIStyle = new GUIStyle(GUI.skin.button);
-	var styleCenter : GUIStyle = new GUIStyle(GUI.skin.button);
-	
-	styleUp.alignment = TextAnchor.UpperCenter;
-	//styleUp.fontSize = 24;
-	//styleCenter.fontSize = 24;
-	
-	//screen size
-	var sw : float = Screen.width;
-	var sh : float = Screen.height;
-	
-	// Menu button
-	if (isMinimize) {
-		if (GUI.Button (Rect (10,10,120,20), "Menu",styleCenter)) {
-			isMinimize = false;
-		}	
-	} else {	
-		// Make a background box
-		GUI.Box (Rect (10,10,120,120), "Menu", styleUp);
-
-		// Make the first button. If it is pressed, Application.Loadlevel (1) will be executed
-		if (GUI.Button (Rect (20,40,100,20), "Shuffle",styleCenter)) {
-			shuffle();
-		}
-
-		// Make the second button.
-		if (GUI.Button (Rect (20,70,100,20), "Reset",styleCenter)) {
-			resetCube();
-		}
-		
-		// Make the third button.
-		if (GUI.Button (Rect (20,100,100,20), "Hide Menu",styleCenter)) {
-			isMinimize = true;
-		}
-	}
-	
-	// Rotate button
-	if (GUI.Button(Rect(sw-115,sh-170,50,50),"UP",styleCenter) && !isRotation) {
-		targetAxis = Vector3.forward;
-		sign = 1;
-		
-		pushRotateInfo("all", targetAxis, sign);
-		initRotateAllCubes();
-		exeRotate();
-		isDragStart = false;
-	}
-	if (GUI.Button(Rect(sw-170,sh-115,50,50),"LEFT",styleCenter) && !isRotation) {
-		targetAxis = Vector3.up;
-		sign = 1;
-		
-		pushRotateInfo("all", targetAxis, sign);
-		initRotateAllCubes();
-		exeRotate();
-		isDragStart = false;
-	}
-	if (GUI.Button(Rect(sw-60,sh-115,50,50),"RIGHT",styleCenter) && !isRotation) {
-		targetAxis = Vector3.up;
-		sign = -1;
-		
-		pushRotateInfo("all", targetAxis, sign);
-		initRotateAllCubes();
-		exeRotate();
-		isDragStart = false;
-	}
-	if (GUI.Button(Rect(sw-115,sh-60,50,50),"DOWN",styleCenter) && !isRotation) {
-		targetAxis = Vector3.forward;
-		sign = -1;
-
-		pushRotateInfo("all", targetAxis, sign);
-		initRotateAllCubes();
-		exeRotate();
-		isDragStart = false;
-	}
-	
-	// Revert button
-	if (GUI.Button(Rect(20,sh-115,50,50),"Revert",styleCenter) && !isRotation) {
+function revert(){
+	if (!isRotation){
 		revertRotate();
 		isDragStart = false;
 	}
+}
+
+/**
+Click Right
+**/
+function click_right(){
+	if (!isRotation){
+		targetAxis = Vector3.up;
+		sign = -1;
+		rotateAllHelper();
+	}
+}
+
+/**
+Click Left
+**/
+function click_left(){
+	if (!isRotation){
+		targetAxis = Vector3.up;
+		sign = 1;
+		rotateAllHelper();
+	}
+}
+
+/**
+Click Up
+**/
+function click_up(){
+	if (!isRotation){
+		targetAxis = Vector3.forward;
+		sign = 1;
+		rotateAllHelper();
+	}
+}
+
+/**
+Click Down
+**/
+function click_down(){
+	if (!isRotation){
+		targetAxis = Vector3.forward;
+		sign = -1;
+		rotateAllHelper();
+	}
+}
+
+
+/**
+RotateAllHelper
+**/
+function rotateAllHelper(){
+	pushRotateInfo("all", targetAxis, sign);
+	initRotateAllCubes();
+	exeRotate();
+	isDragStart = false;
+}
+
+/**
+Toggle Menu Window
+**/
+function toggleMenu(){
+	isMenuActive = isMenuActive ? false : true;
+	menuW.SetActive(isMenuActive);
 }
 
 /**
