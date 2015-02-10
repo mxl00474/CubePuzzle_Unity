@@ -12354,12 +12354,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   targetObject: {fileID: 1409912206}
   cameraPivot: {fileID: 102104907}
+  mainCamera: {fileID: 1776320743}
   menuW: {fileID: 1407267459}
   lockB: {fileID: 0}
   debugFlag: 0
   rotateSpeed: 15
   rotateCount: 6
   cameraRotateSpeed: .699999988
+  cameraZoomSpeed: .00100000005
 --- !u!4 &1701840770
 Transform:
   m_ObjectHideFlags: 0

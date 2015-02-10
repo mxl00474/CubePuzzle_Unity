@@ -10,6 +10,7 @@ import System.Collections.Generic;
 // Rotation Target
 var targetObject : GameObject;
 var cameraPivot : GameObject;
+var mainCamera : GameObject;
 var menuW : GameObject;
 var lockB : GameObject;
 
@@ -22,6 +23,7 @@ private var targetCube : Transform;
 var rotateSpeed : float;
 var rotateCount : int;
 var cameraRotateSpeed : float;
+var cameraZoomSpeed : float;
 
 // Raycast SetUp:
 var hit : RaycastHit;
@@ -40,6 +42,7 @@ private var sign : float;
 // Axis for the camera
 private var camera_up : Vector3;
 private var camera_right : Vector3;
+private var camera_forward : Vector3;
 
 private var isTouchOnPlane : boolean; // True when touch on the planes
 private var isRotation : boolean; // True during the roration
@@ -418,7 +421,8 @@ function OnOn(pos:Vector2){
 	if (debugFlag) Debug.Log("Tap");
 	
 	camera_up = cameraPivot.transform.up;
-	camera_right = cameraPivot.transform.right;				
+	camera_right = cameraPivot.transform.right;
+	camera_forward = cameraPivot.transform.forward;		
 }
 
 function OnDragging(dragInfo:DragInfo){
@@ -435,13 +439,21 @@ function OnDragging(dragInfo:DragInfo){
 }
 
 function OnRotate(rinfo:RotateInfo){
-	//rotateSpeed=Mathf.Lerp(rotateSpeed, rinfo.magnitude*rotateSpeedModifier/IT_Gesture.GetDPIFactor(), 0.75);
-	Debug.Log("Rotating");
+
+	if (debugFlag) Debug.Log("Rotating");
+	
+	cameraPivot.transform.Rotate(camera_forward, -rinfo.magnitude * cameraRotateSpeed, Space.World);
 }
 
 function OnPinch(pinfo:PinchInfo){
-	Debug.Log("Pinching");	
-	//zoomSpeed-=pinfo.magnitude*zoomSpeedModifier/IT_Gesture.GetDPIFactor();
+
+	if (debugFlag) Debug.Log("Pinching");
+	
+	Debug.Log("magnitude = " + pinfo.magnitude);
+	
+	var zoomSpeed : float = Mathf.Clamp(1.0 + pinfo.magnitude*cameraZoomSpeed/IT_Gesture.GetDPIFactor(), 0.8, 1.2);
+	var p : Vector3 = mainCamera.transform.position;	
+	mainCamera.transform.position = p * zoomSpeed;
 }
 
 function OnSwipe(sw:SwipeInfo){
