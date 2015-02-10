@@ -2,10 +2,17 @@
 
 import System.Collections.Generic;
 
+/**
+*********************************************
+ Member definitions
+*********************************************
+**/
 // Rotation Target
 var targetObject : GameObject;
 var cameraPivot : GameObject;
 var menuW : GameObject;
+var lockB : GameObject;
+
 var debugFlag : boolean;
 
 private var rotatetarget : Transform;
@@ -26,10 +33,6 @@ private var axis2 : Vector3;
 
 private var targetAxis : Vector3;
 
-// Mouse position in origin (click)
-private var sx:float;
-private var sy:float;
-
 // For Cube rotation
 private var rotateCounter : int;
 private var sign : float;
@@ -37,12 +40,10 @@ private var sign : float;
 // Axis for the camera
 private var camera_up : Vector3;
 private var camera_right : Vector3;
-private var camera_x : float;
-private var camera_y : float;
 
 private var isTouchOnPlane : boolean; // True when touch on the planes
 private var isRotation : boolean; // True during the roration
-private var isDragStart : boolean; // True when starting drug
+private var isLocked : boolean;	// True when cubes are locked
 
 // Cubes
 private var cubes : GameObject[];
@@ -54,14 +55,19 @@ private var stack : Stack;
 private var isMinimize : boolean;
 private var isMenuActive : boolean;
 
+/**
+*********************************************
+ Start functions
+*********************************************
+**/
+
 function Start () {	
 
 	//Initialize the boolean flags
-	isTouchOnPlane = false;
 	isRotation = false;
-	isDragStart = false;
 	isMinimize = false;	
 	isMenuActive = false;
+	isLocked = false;
 
 	// Put all cube to cubes
 	if (cubes == null)
@@ -74,123 +80,39 @@ function Start () {
 	menuW.SetActive(isMenuActive);
 }
 
-function Update () {
+function OnEnable(){
+	IT_Gesture.onDraggingE += OnDragging; // Drag
+	IT_Gesture.onRotateE += OnRotate; // Rotate
+	IT_Gesture.onPinchE += OnPinch; // Pinch
+	IT_Gesture.onSwipeE += OnSwipe; // Swipe
+	IT_Gesture.onTouchPosE += OnOn; // Tap
+}
 
+function OnDisable(){
+	IT_Gesture.onDraggingE -= OnDragging;
+	IT_Gesture.onRotateE -= OnRotate;
+	IT_Gesture.onPinchE -= OnPinch;
+	IT_Gesture.onSwipeE -= OnSwipe;
+	IT_Gesture.onTouchPosE -= OnOn;
+}
+
+/**
+*********************************************
+ Update
+*********************************************
+**/
+
+function Update () {
 	if (isRotation) { //Execute rotation
 		exeRotate();
-
-	} else { // Handles touch / click
-
-		var ray = Camera.main.ScreenPointToRay (Input.mousePosition);
-
-		// Mouse / touch down
-		if ((debugFlag && Input.GetMouseButtonDown(0)) ||
-			 (!debugFlag && Input.GetTouch(0).phase == TouchPhase.Began)) {
-
-			if (Physics.Raycast (ray, hit) && hit.transform.tag == "Plane" && !isMenuActive) { // Flick start when touch the planes			
-								
-				isTouchOnPlane = true;
-				if (debugFlag) Debug.Log(hit.transform.name);
-
-				// Store the mouse position
-				sx = Input.mousePosition.x;
-				sy = Input.mousePosition.y;
-				
-				// Up, axis1, axis2 of the panel (in world space)
-				up = hit.transform.up;
-				axis1 = hit.transform.forward;
-				axis2 = hit.transform.right;
-
-				// Set the target Cube
-				targetCube = hit.transform.parent;
-				
-				if (debugFlag) {
-					var test : CubeProperty = targetCube.GetComponent("CubeProperty");
-					Debug.Log("cubeName=" + test.CubeName);
-				}
-				
-			} else if(!Physics.Raycast (ray, hit) && !isDragStart) { // Start drag when touching nothing
-				
-				isDragStart	= true;
-				if (debugFlag) Debug.Log("Drag start");
-				
-				camera_up = cameraPivot.transform.up;
-				camera_right = cameraPivot.transform.right;				
-				camera_x = Input.mousePosition.x;
-				camera_y = Input.mousePosition.y;
-			}
-		}
-
-		//flick End
-		if((debugFlag && Input.GetMouseButtonUp(0) && isTouchOnPlane) || 
-			(!debugFlag && Input.GetTouch(0).phase == TouchPhase.Ended && isTouchOnPlane)) {
-
-			// Mouse move vector (in screen space)
-			var dx : float = Input.mousePosition.x - sx;
-			var dy : float = Input.mousePosition.y - sy;
-			var diff : Vector2 = Vector2(dx, dy).normalized;
-
-			// transform axis1 and axis2 to screen space
-			var axis1S : Vector3 = Camera.main.WorldToScreenPoint(axis1);
-	 		var axis2S : Vector3 = Camera.main.WorldToScreenPoint(axis2);
-	 		var origin : Vector3 = Camera.main.WorldToScreenPoint(Vector3.zero);
-			var axis1SS : Vector2 = Vector2(axis1S.x - origin.x, axis1S.y - origin.y).normalized;
-			var axis2SS : Vector2 = Vector2(axis2S.x - origin.x, axis2S.y - origin.y).normalized;
-
-			// Judge the direction to rotate by comparing the inner-product
-			var dot1 : float = Vector2.Dot(diff, axis1SS);
-			var dot2 : float = Vector2.Dot(diff, axis2SS);
-
-			if (Mathf.Abs(dot1) < Mathf.Abs(dot2)){
-				targetAxis = axis1;
-				sign = Mathf.Sign(dot2) * -1.0;
-			} else {
-				targetAxis = axis2;
-				sign = Mathf.Sign(dot1);
-			}
-
-			// Push the rotation info
-			var cubeProperty : CubeProperty = targetCube.GetComponent("CubeProperty");
-			pushRotateInfo(cubeProperty.CubeName, targetAxis, sign);
-
-			if (debugFlag) 
-				Debug.Log("Axsis: X=" + targetAxis.x + ", Y=" + targetAxis.y + ", Z=" + targetAxis.z 
-						+ ", sign=" + sign + ", dot1=" + dot1 + ", dot2=" + dot2);
-
-			isTouchOnPlane = false;
-			
-			//Initialize rotation
-			initRotate();			
-		}
-
-		//Drag
-		if((debugFlag && Input.GetMouseButton(0) && isDragStart) ||
-			(!debugFlag && Input.GetTouch(0).phase == TouchPhase.Moved && isDragStart)){
-		
-			if (debugFlag) Debug.Log("Dragging");
-			
-			// cdx and cdy are the difference from the previous mouse point
-			var cdx : float = Input.mousePosition.x - camera_x;
-			var cdy : float = Input.mousePosition.y - camera_y;
-
-			// Reserve the current mouse position for the next drag
-			camera_x = Input.mousePosition.x;
-			camera_y = Input.mousePosition.y;
-			
-			// Execute rotation
-			cameraPivot.transform.Rotate(camera_up, cdx * cameraRotateSpeed, Space.World);
-			cameraPivot.transform.Rotate(camera_right, cdy * cameraRotateSpeed, Space.World);
-
-		}
-		
-		//Drag end
-		if ((debugFlag && Input.GetMouseButtonUp(0) && isDragStart) ||
-			(!debugFlag && Input.GetTouch(0).phase == TouchPhase.Ended)){
-			isDragStart = false;
-			if (debugFlag) Debug.Log("Drag end");
-		}
 	}
 }
+
+/**
+*********************************************
+ Helper functions
+*********************************************
+**/
 
 // Adjust the axis vector because sometimes it is not exactly 0
 function adjustAxisVector(v : Vector3){
@@ -282,7 +204,7 @@ Push the rotate info to the stack
 **/
 function pushRotateInfo(_cube : String, _axis : Vector3, _sign : float) {
 
-	var rotateInfo : RotateInfo = new RotateInfo();
+	var rotateInfo : MyRotateInfo = new MyRotateInfo();
 
 	rotateInfo.cube = _cube;
 	rotateInfo.sign = _sign;
@@ -298,7 +220,7 @@ function popRotateInfo(){
 	if (stack.Count == 0) {
 		return null;
 	} else {
-		var rotateInfo : RotateInfo = stack.Pop();
+		var rotateInfo : MyRotateInfo = stack.Pop();
 		return rotateInfo;
 	}
 }
@@ -307,7 +229,7 @@ function popRotateInfo(){
 Revert rotation
 **/
 function revertRotate(){
-	var rotateInfo : RotateInfo = popRotateInfo();
+	var rotateInfo : MyRotateInfo = popRotateInfo();
 	
 	// If the stack is empty, do nothing.
 	if (rotateInfo == null) return;
@@ -341,76 +263,12 @@ function findCubeByName(_name : String) {
 }
 
 /**
-Click Revert
-**/
-function revert(){
-	if (!isRotation){
-		revertRotate();
-		isDragStart = false;
-	}
-}
-
-/**
-Click Right
-**/
-function click_right(){
-	if (!isRotation){
-		targetAxis = Vector3.up;
-		sign = -1;
-		rotateAllHelper();
-	}
-}
-
-/**
-Click Left
-**/
-function click_left(){
-	if (!isRotation){
-		targetAxis = Vector3.up;
-		sign = 1;
-		rotateAllHelper();
-	}
-}
-
-/**
-Click Up
-**/
-function click_up(){
-	if (!isRotation){
-		targetAxis = Vector3.forward;
-		sign = 1;
-		rotateAllHelper();
-	}
-}
-
-/**
-Click Down
-**/
-function click_down(){
-	if (!isRotation){
-		targetAxis = Vector3.forward;
-		sign = -1;
-		rotateAllHelper();
-	}
-}
-
-
-/**
 RotateAllHelper
 **/
 function rotateAllHelper(){
 	pushRotateInfo("all", targetAxis, sign);
 	initRotateAllCubes();
 	exeRotate();
-	isDragStart = false;
-}
-
-/**
-Toggle Menu Window
-**/
-function toggleMenu(){
-	isMenuActive = isMenuActive ? false : true;
-	menuW.SetActive(isMenuActive);
 }
 
 /**
@@ -459,8 +317,6 @@ function shuffle () {
 		rotatetarget.Rotate(targetAxis, sign * 90, Space.World);
 		isRotation = false;
 	}
-	
-	isDragStart = false;
 }
 
 /**
@@ -476,7 +332,177 @@ function resetCube(){
 	stack.Clear();
 }
 
+/**
+*********************************************
+ GUI events
+*********************************************
+**/
+
+/**
+Click Revert
+**/
+function revert(){
+	if (!isRotation){
+		revertRotate();
+	}
+}
+
+/**
+Click Lock button
+**/
+function toggleLock(){
+	isLocked = isLocked ? false : true;
+}
+
+/**
+Click Right (Currently not used)
+**/
+function click_right(){
+	if (!isRotation){
+		targetAxis = Vector3.up;
+		sign = -1;
+		rotateAllHelper();
+	}
+}
+
+/**
+Click Left (Currently not used)
+**/
+function click_left(){
+	if (!isRotation){
+		targetAxis = Vector3.up;
+		sign = 1;
+		rotateAllHelper();
+	}
+}
+
+/**
+Click Up (Currently not used)
+**/
+function click_up(){
+	if (!isRotation){
+		targetAxis = Vector3.forward;
+		sign = 1;
+		rotateAllHelper();
+	}
+}
+
+/**
+Click Down (Currently not used)
+**/
+function click_down(){
+	if (!isRotation){
+		targetAxis = Vector3.forward;
+		sign = -1;
+		rotateAllHelper();
+	}
+}
+
+/**
+Toggle Menu Window
+**/
+function toggleMenu(){
+	isMenuActive = isMenuActive ? false : true;
+	menuW.SetActive(isMenuActive);
+}
 
 
+/**
+*********************************************
+ Touch events
+*********************************************
+**/
 
+function OnOn(pos:Vector2){
 
+	if (debugFlag) Debug.Log("Tap");
+	
+	camera_up = cameraPivot.transform.up;
+	camera_right = cameraPivot.transform.right;				
+}
+
+function OnDragging(dragInfo:DragInfo){
+
+	if (debugFlag) Debug.Log("dragging");
+
+	if (dragInfo.fingerCount == 1 && isLocked){
+		// Execute rotation
+		var cdx : float = dragInfo.delta.x;
+		var cdy : float = dragInfo.delta.y;	
+		cameraPivot.transform.Rotate(camera_up, cdx * cameraRotateSpeed, Space.World);
+		cameraPivot.transform.Rotate(camera_right, cdy * cameraRotateSpeed, Space.World);
+	}
+}
+
+function OnRotate(rinfo:RotateInfo){
+	//rotateSpeed=Mathf.Lerp(rotateSpeed, rinfo.magnitude*rotateSpeedModifier/IT_Gesture.GetDPIFactor(), 0.75);
+	Debug.Log("Rotating");
+}
+
+function OnPinch(pinfo:PinchInfo){
+	Debug.Log("Pinching");	
+	//zoomSpeed-=pinfo.magnitude*zoomSpeedModifier/IT_Gesture.GetDPIFactor();
+}
+
+function OnSwipe(sw:SwipeInfo){
+
+	if (debugFlag) {
+		Debug.Log("Swiping"); 
+		Debug.Log("Mouse Position X=" + Input.mousePosition.x + " Y=" + Input.mousePosition.y);
+		Debug.Log("Swipe Start X=" + sw.startPoint.x + " Y=" + sw.startPoint.y);
+		Debug.Log("Swipe End X=" + sw.endPoint.x + " Y=" + sw.endPoint.y);
+	}
+	
+	var ray = Camera.main.ScreenPointToRay (sw.startPoint);
+		
+	if (Physics.Raycast (ray, hit) && hit.transform.tag == "Plane" && !isMenuActive && !isLocked) { // Swipte on the plane
+								
+		if (debugFlag) Debug.Log(hit.transform.name);
+
+		// Up, axis1, axis2 of the panel (in world space)
+		up = hit.transform.up;
+		axis1 = hit.transform.forward;
+		axis2 = hit.transform.right;
+
+		// Set the target Cube
+		targetCube = hit.transform.parent;
+				
+		if (debugFlag) {
+			var test : CubeProperty = targetCube.GetComponent("CubeProperty");
+			Debug.Log("cubeName=" + test.CubeName);
+		}
+
+		// Mouse move direction (in screen space)
+		var diff : Vector2 = sw.direction;
+
+		// transform axis1 and axis2 to screen space
+		var axis1S : Vector3 = Camera.main.WorldToScreenPoint(axis1);
+	 	var axis2S : Vector3 = Camera.main.WorldToScreenPoint(axis2);
+	 	var origin : Vector3 = Camera.main.WorldToScreenPoint(Vector3.zero);
+		var axis1SS : Vector2 = Vector2(axis1S.x - origin.x, axis1S.y - origin.y).normalized;
+		var axis2SS : Vector2 = Vector2(axis2S.x - origin.x, axis2S.y - origin.y).normalized;
+
+		// Judge the direction to rotate by comparing the inner-product
+		var dot1 : float = Vector2.Dot(diff, axis1SS);
+		var dot2 : float = Vector2.Dot(diff, axis2SS);
+
+		if (Mathf.Abs(dot1) < Mathf.Abs(dot2)){
+			targetAxis = axis1;
+			sign = Mathf.Sign(dot2) * -1.0;
+		} else {
+			targetAxis = axis2;
+			sign = Mathf.Sign(dot1);
+		}
+
+		// Push the rotation info
+		var cubeProperty : CubeProperty = targetCube.GetComponent("CubeProperty");
+		pushRotateInfo(cubeProperty.CubeName, targetAxis, sign);
+		
+		if (debugFlag) 
+			Debug.Log("Axsis: X=" + targetAxis.x + ", Y=" + targetAxis.y + ", Z=" + targetAxis.z 
+					+ ", sign=" + sign + ", dot1=" + dot1 + ", dot2=" + dot2);
+	
+		//Initialize rotation
+		initRotate();
+	}
+}
