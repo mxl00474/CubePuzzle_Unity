@@ -12358,8 +12358,8 @@ MonoBehaviour:
   menuW: {fileID: 1407267459}
   lockB: {fileID: 0}
   debugFlag: 0
+  tapPoint: {x: 0, y: 0, z: 0}
   rotateSpeed: 15
-  rotateCount: 6
   cameraRotateSpeed: .699999988
   cameraZoomSpeed: .00100000005
 --- !u!4 &1701840770

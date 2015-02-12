@@ -19,9 +19,11 @@ var debugFlag : boolean;
 private var rotatetarget : Transform;
 private var targetCube : Transform;
 
+// Tap point (on the screen world)
+var tapPoint : Vector3;
+
 // Rotate speed
 var rotateSpeed : float;
-var rotateCount : int;
 var cameraRotateSpeed : float;
 var cameraZoomSpeed : float;
 
@@ -36,8 +38,8 @@ private var axis2 : Vector3;
 private var targetAxis : Vector3;
 
 // For Cube rotation
-private var rotateCounter : int;
 private var sign : float;
+private var rotateAmount : float;
 
 // Axis for the camera
 private var camera_up : Vector3;
@@ -45,6 +47,7 @@ private var camera_right : Vector3;
 private var camera_forward : Vector3;
 
 private var isTouchOnPlane : boolean; // True when touch on the planes
+private var isRotateByDrag : boolean;
 private var isRotation : boolean; // True during the roration
 private var isLocked : boolean;	// True when cubes are locked
 
@@ -68,6 +71,7 @@ function Start () {
 
 	//Initialize the boolean flags
 	isRotation = false;
+	isRotateByDrag = false;
 	isMinimize = false;	
 	isMenuActive = false;
 	isLocked = false;
@@ -84,7 +88,9 @@ function Start () {
 }
 
 function OnEnable(){
+	IT_Gesture.onDraggingStartE += OnDraggingStart; // Drag start
 	IT_Gesture.onDraggingE += OnDragging; // Drag
+	IT_Gesture.onDraggingEndE += OnDraggingEnd; // Drag end
 	IT_Gesture.onRotateE += OnRotate; // Rotate
 	IT_Gesture.onPinchE += OnPinch; // Pinch
 	IT_Gesture.onSwipeE += OnSwipe; // Swipe
@@ -92,7 +98,9 @@ function OnEnable(){
 }
 
 function OnDisable(){
+	IT_Gesture.onDraggingStartE -= OnDraggingStart;
 	IT_Gesture.onDraggingE -= OnDragging;
+	IT_Gesture.onDraggingEndE -= OnDraggingEnd;
 	IT_Gesture.onRotateE -= OnRotate;
 	IT_Gesture.onPinchE -= OnPinch;
 	IT_Gesture.onSwipeE -= OnSwipe;
@@ -107,7 +115,7 @@ function OnDisable(){
 
 function Update () {
 	if (isRotation) { //Execute rotation
-		exeRotate();
+		exeRotate(rotateSpeed);
 	}
 }
 
@@ -117,69 +125,119 @@ function Update () {
 *********************************************
 **/
 
-// Adjust the axis vector because sometimes it is not exactly 0
-function adjustAxisVector(v : Vector3){
+/**
+Adjust position vector to the nearest integer
+**/
+function adjustPositionVector(v : Vector3){
 	var res : Vector3;
-	res.x = Mathf.Abs(v.x) > 0.5 ? 1 : 0;
-	res.y = Mathf.Abs(v.y) > 0.5 ? 1 : 0;
-	res.z = Mathf.Abs(v.z) > 0.5 ? 1 : 0;
+	res.x = Mathf.RoundToInt(v.x);
+	res.y = Mathf.RoundToInt(v.y);
+	res.z = Mathf.RoundToInt(v.z);
 	return res;
 }
 
-// Adjust positions
-function adjustPosition(v : Vector3){
+/**
+Adjust angle vector to the nearest multiple of 90
+**/
+function adjustAngleVector(v : Vector3){
 	var res : Vector3;
-
-	if (v.x < -0.05)
-		res.x = -1;
-	else if (v.x > 0.05)
-		res.x = 1;
-	else
-		res.x = 0;
-
-	if (v.y < -0.05)
-		res.y = -1;
-	else if (v.y > 0.05)
-		res.y = 1;
-	else
-		res.y = 0;
-
-	if (v.z < -0.05)
-		res.z = -1;
-	else if (v.z > 0.05)
-		res.z = 1;
-	else
-		res.z = 0;
-
+	res.x = Mathf.RoundToInt(v.x/90.0) * 90;
+	res.y = Mathf.RoundToInt(v.y/90.0) * 90;
+	res.z = Mathf.RoundToInt(v.z/90.0) * 90;
+	
+	Debug.Log("original x=" + v.x + ", y=" + v.y + ", z=" + v.z);
+	Debug.Log("adjusted x=" + res.x + ", y=" + res.y + ", z=" + res.z);
 	return res;
 }
+
+/**
+ Ajust all cube positions and angles
+**/
+function adjustAllCubes(){
+	for (var c : GameObject in cubes){
+		c.transform.position = adjustPositionVector(c.transform.position);
+		c.transform.localEulerAngles = adjustAngleVector(c.transform.localEulerAngles);	
+	}
+	rotatetarget.position = adjustPositionVector(rotatetarget.position);
+	rotatetarget.localEulerAngles = adjustAngleVector(rotatetarget.localEulerAngles);	
+}
+
 /**
  Execute rotation
 **/
-function exeRotate(){
-	if (rotateCounter == rotateCount){
+function exeRotate(speed : float){
+	if (rotateAmount + speed > 90.0){
+		rotatetarget.Rotate(targetAxis, sign * (90.0 - rotateAmount), Space.World);
 		isRotation = false;
+		adjustAllCubes(); // Adjust the cube positions and angles
 	} else {
-		rotatetarget.Rotate(targetAxis, sign * rotateSpeed, Space.World);
-		rotateCounter ++;
+		rotatetarget.Rotate(targetAxis, sign * speed, Space.World);
+		rotateAmount += speed;
+	}
+	
+}
+
+/**
+ Set a target object of the rotation
+**/
+function setTargetCube(){
+
+	if (debugFlag) Debug.Log(hit.transform.name);
+
+	// Up, axis1, axis2 of the panel (in world space)
+	up = hit.transform.up;
+	axis1 = hit.transform.forward;
+	axis2 = hit.transform.right;
+
+	// Set the target Cube
+	targetCube = hit.transform.parent;
+				
+	if (debugFlag) {
+		var test : CubeProperty = targetCube.GetComponent("CubeProperty");
+		Debug.Log("cubeName=" + test.CubeName);
 	}
 }
+
+/**
+ set a target axis and a sign of the rotation
+**/
+function setTargetAxis(diff:Vector3){
+	// transform axis1 and axis2 to screen space
+	var axis1S : Vector3 = Camera.main.WorldToScreenPoint(axis1);
+	var axis2S : Vector3 = Camera.main.WorldToScreenPoint(axis2);
+	var origin : Vector3 = Camera.main.WorldToScreenPoint(Vector3.zero);
+	var axis1SS : Vector2 = Vector2(axis1S.x - origin.x, axis1S.y - origin.y).normalized;
+	var axis2SS : Vector2 = Vector2(axis2S.x - origin.x, axis2S.y - origin.y).normalized;
+
+	// Judge the direction to rotate by comparing the inner-product
+	var dot1 : float = Vector2.Dot(diff, axis1SS);
+	var dot2 : float = Vector2.Dot(diff, axis2SS);
+
+	if (Mathf.Abs(dot1) < Mathf.Abs(dot2)){
+		targetAxis = axis1;
+		sign = Mathf.Sign(dot2) * -1.0;
+	} else {
+		targetAxis = axis2;
+		sign = Mathf.Sign(dot1);
+	}
+
+	if (debugFlag) 
+		Debug.Log("Axsis: X=" + targetAxis.x + ", Y=" + targetAxis.y + ", Z=" + targetAxis.z 
+				+ ", sign=" + sign + ", dot1=" + dot1 + ", dot2=" + dot2);
+}	
 
 /**
  Initialize rotation
 **/
 function initRotate(){
-	// Change the status to isRotation
-	isRotation = true;
-	rotateCounter = 0;
 
 	// Create the target Object
 	rotatetarget = targetObject.transform;
 	rotatetarget.position = Vector3.zero;
 
 	// Put the target cubes to the target Object
-	var av : Vector3 = adjustAxisVector(targetAxis);
-	var tv : Vector3 = adjustPosition(targetCube.position);
+	var av : Vector3 = adjustPositionVector(targetAxis);
+	var tv : Vector3 = adjustPositionVector(targetCube.position);
 	var tx = tv.x * av.x;
 	var ty = tv.y * av.y;
 	var tz = tv.z * av.z;
@@ -188,7 +246,7 @@ function initRotate(){
 
 	for (var c : GameObject in cubes){
 
-		var cv : Vector3 = adjustPosition(c.transform.position);
+		var cv : Vector3 = adjustPositionVector(c.transform.position);
 		var x = cv.x * av.x;
 		var y = cv.y * av.y;
 		var z = cv.z * av.z;
@@ -200,6 +258,9 @@ function initRotate(){
 		else
 			c.transform.parent = null;
 	}
+	
+	// set RotateAmount to 0
+	rotateAmount = 0.0;
 }
 
 /**
@@ -243,14 +304,16 @@ function revertRotate(){
 	
 	if (cubeName == "all") {
 		initRotateAllCubes();
+		isRotation = true; // Start the rotation imidiately.
 	}
 	else {
 		targetCube = findCubeByName(cubeName);	
 		if (targetCube == null) return;
 		initRotate();
+		isRotation = true; // Start the rotation imidiately.
 	}
 	
-	exeRotate();
+	exeRotate(rotateSpeed);
 }
 
 /**
@@ -271,16 +334,14 @@ RotateAllHelper
 function rotateAllHelper(){
 	pushRotateInfo("all", targetAxis, sign);
 	initRotateAllCubes();
-	exeRotate();
+	isRotation = true; // Start the rotation imidiately.
+	exeRotate(rotateSpeed);
 }
 
 /**
 Select all cubes
 **/
 function initRotateAllCubes(){
-	// Initialize rotate
-	isRotation = true;
-	rotateCounter = 0;
 
 	// Create the target Object
 	rotatetarget = targetObject.transform;
@@ -290,6 +351,8 @@ function initRotateAllCubes(){
 	for (var c : GameObject in cubes){
 		c.transform.parent = targetObject.transform;
 	}
+	
+	rotateAmount = 0.0;
 }
 
 /**
@@ -419,23 +482,71 @@ function toggleMenu(){
 function OnOn(pos:Vector2){
 
 	if (debugFlag) Debug.Log("Tap");
-	
+
+	// Prepare for change the angle
 	camera_up = cameraPivot.transform.up;
 	camera_right = cameraPivot.transform.right;
-	camera_forward = cameraPivot.transform.forward;		
+	camera_forward = cameraPivot.transform.forward;
+}
+
+function OnDraggingStart(dragInfo:DragInfo){
+
+	if (debugFlag) Debug.Log("Drag Start");
+
+	tapPoint = dragInfo.pos;
+
+	// In the future, if the rotation by drag is supported, uncomment these lines		
+	//var ray = Camera.main.ScreenPointToRay (tapPoint);
+	//if (Physics.Raycast (ray, hit) && hit.transform.tag == "Plane" 
+	//	&& !isRotation && !isMenuActive && !isLocked) { // prepare for moving cubes
+	//
+	//	setTargetCube();
+	//	setTargetAxis(dragInfo.delta);
+	//	
+	//	initRotate();
+	//	
+	//	isRotateByDrag = true;
+	//}
+}
+
+function OnDraggingEnd(dragInfo:DragInfo){
+
+	if (debugFlag) Debug.Log("Drag End");
+
+	// In the future, if the rotation by drag is supported, uncomment these lines		
+	//if (isRotateByDrag) {
+	//
+	//	isRotateByDrag = false;
+	//	isRotation = true;		
+	//	// Push the rotation info
+	//	var cubeProperty : CubeProperty = targetCube.GetComponent("CubeProperty");
+	//	pushRotateInfo(cubeProperty.CubeName, targetAxis, sign);
+	//			
+	//}
 }
 
 function OnDragging(dragInfo:DragInfo){
 
 	if (debugFlag) Debug.Log("dragging");
 
-	if (dragInfo.fingerCount == 1 && isLocked){
+	var ray = Camera.main.ScreenPointToRay (tapPoint);
+	
+	//if (dragInfo.fingerCount == 1 && isLocked){
+	if (isLocked || !Physics.Raycast (ray, hit)) {
+
 		// Execute rotation
 		var cdx : float = dragInfo.delta.x;
 		var cdy : float = dragInfo.delta.y;	
 		cameraPivot.transform.Rotate(camera_up, cdx * cameraRotateSpeed, Space.World);
 		cameraPivot.transform.Rotate(camera_right, cdy * cameraRotateSpeed, Space.World);
 	}
+	
+	// In the future, if the rotation by drag is supported, uncomment these lines		
+	/* TODO: Implement rotation by drag
+	if (isRotateByDrag) {
+		var speed : float = Mathf.Sqrt(Mathf.Pow(dragInfo.delta.x,2) + Mathf.Pow(dragInfo.delta.y,2));
+		exeRotate(speed);
+	}*/
 }
 
 function OnRotate(rinfo:RotateInfo){
@@ -458,63 +569,24 @@ function OnPinch(pinfo:PinchInfo){
 
 function OnSwipe(sw:SwipeInfo){
 
-	if (debugFlag) {
-		Debug.Log("Swiping"); 
-		Debug.Log("Mouse Position X=" + Input.mousePosition.x + " Y=" + Input.mousePosition.y);
-		Debug.Log("Swipe Start X=" + sw.startPoint.x + " Y=" + sw.startPoint.y);
-		Debug.Log("Swipe End X=" + sw.endPoint.x + " Y=" + sw.endPoint.y);
-	}
+	if (debugFlag) Debug.Log("Swiping"); 
 	
 	var ray = Camera.main.ScreenPointToRay (sw.startPoint);
 		
-	if (Physics.Raycast (ray, hit) && hit.transform.tag == "Plane" && !isMenuActive && !isLocked) { // Swipte on the plane
+	if (Physics.Raycast (ray, hit) && hit.transform.tag == "Plane" && 
+		!isRotation && !isMenuActive && !isLocked) { // Swipte on the plane
 								
 		if (debugFlag) Debug.Log(hit.transform.name);
 
-		// Up, axis1, axis2 of the panel (in world space)
-		up = hit.transform.up;
-		axis1 = hit.transform.forward;
-		axis2 = hit.transform.right;
-
-		// Set the target Cube
-		targetCube = hit.transform.parent;
-				
-		if (debugFlag) {
-			var test : CubeProperty = targetCube.GetComponent("CubeProperty");
-			Debug.Log("cubeName=" + test.CubeName);
-		}
-
-		// Mouse move direction (in screen space)
-		var diff : Vector2 = sw.direction;
-
-		// transform axis1 and axis2 to screen space
-		var axis1S : Vector3 = Camera.main.WorldToScreenPoint(axis1);
-	 	var axis2S : Vector3 = Camera.main.WorldToScreenPoint(axis2);
-	 	var origin : Vector3 = Camera.main.WorldToScreenPoint(Vector3.zero);
-		var axis1SS : Vector2 = Vector2(axis1S.x - origin.x, axis1S.y - origin.y).normalized;
-		var axis2SS : Vector2 = Vector2(axis2S.x - origin.x, axis2S.y - origin.y).normalized;
-
-		// Judge the direction to rotate by comparing the inner-product
-		var dot1 : float = Vector2.Dot(diff, axis1SS);
-		var dot2 : float = Vector2.Dot(diff, axis2SS);
-
-		if (Mathf.Abs(dot1) < Mathf.Abs(dot2)){
-			targetAxis = axis1;
-			sign = Mathf.Sign(dot2) * -1.0;
-		} else {
-			targetAxis = axis2;
-			sign = Mathf.Sign(dot1);
-		}
+		setTargetCube();
+		setTargetAxis(sw.direction);
 
 		// Push the rotation info
 		var cubeProperty : CubeProperty = targetCube.GetComponent("CubeProperty");
 		pushRotateInfo(cubeProperty.CubeName, targetAxis, sign);
 		
-		if (debugFlag) 
-			Debug.Log("Axsis: X=" + targetAxis.x + ", Y=" + targetAxis.y + ", Z=" + targetAxis.z 
-					+ ", sign=" + sign + ", dot1=" + dot1 + ", dot2=" + dot2);
-	
 		//Initialize rotation
+		isRotation = true;
 		initRotate();
 	}
 }
