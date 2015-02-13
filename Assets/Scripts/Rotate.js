@@ -54,6 +54,7 @@ private var isLocked : boolean;	// True when cubes are locked
 
 // Cubes
 private var cubes : GameObject[];
+private var cube_positions : List.<Vector3>;
 
 // Stack to save the operation history
 private var stack : Stack;
@@ -80,7 +81,12 @@ function Start () {
 	// Put all cube to cubes
 	if (cubes == null)
 		cubes = GameObject.FindGameObjectsWithTag ("Cube");
-	
+
+	// Store the positions for all cubes
+	cube_positions = new List.<Vector3>();
+	for (var i = 0 ; i < cubes.Length ; i++)
+		cube_positions.Add(cubes[i].transform.position);
+
 	// Initialize the stack
 	stack = new Stack();
 	
@@ -406,8 +412,14 @@ Reset cubes to the original ImagePosition
 **/
 function resetCube(){
 	//Change the direction of all cubes
-	for (var c : GameObject in cubes){
-		c.transform.rotation = Quaternion.LookRotation(Vector3.zero);
+	//for (var c : GameObject in cubes){
+	//	c.transform.rotation = Quaternion.LookRotation(Vector3.zero);
+	//}
+	
+	for (var i = 0 ; i < cubes.Length ; i++){
+		cubes[i].transform.parent = null;
+		cubes[i].transform.rotation = Quaternion.LookRotation(Vector3.zero);
+		cubes[i].transform.position = cube_positions[i];
 	}
 	
 	//Clear rotate Stack
@@ -535,7 +547,7 @@ function loadStatus(){
 	
 	// restore the sequences
 	var list : List.<MyRotateInfo> = status.list;
-	for (var i= list.Count-1 ; i >= 0 ; i--){
+	for (var i= 0 ; i < list.Count ; i++){
 		var info : MyRotateInfo = list[i];
 		stack.Push(info);
 		restoreRotation(info);
