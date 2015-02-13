@@ -12,6 +12,7 @@ var targetObject : GameObject;
 var cameraPivot : GameObject;
 var mainCamera : GameObject;
 var menuW : GameObject;
+var inquiryW : GameObject;
 var lockB : GameObject;
 
 var debugFlag : boolean;
@@ -85,6 +86,7 @@ function Start () {
 	
 	// Hide Menu Window
 	menuW.SetActive(isMenuActive);
+	inquiryW.SetActive(false);
 }
 
 function OnEnable(){
@@ -114,8 +116,22 @@ function OnDisable(){
 **/
 
 function Update () {
-	if (isRotation) { //Execute rotation
+
+	// Execute rotation
+	if (isRotation) {
 		exeRotate(rotateSpeed);
+	}
+	
+	// Menu key and back key
+	if (Application.platform == RuntimePlatform.Android){
+		if (Input.GetKeyUp(KeyCode.Escape)){			
+			if (isMenuActive){ // If menu is active, close the menu
+				isMenuActive = false;
+				menuW.SetActive(isMenuActive);
+			} else { // close the application
+				displayInquiry();
+			}
+		}
 	}
 }
 
@@ -268,11 +284,11 @@ Push the rotate info to the stack
 **/
 function pushRotateInfo(_cube : String, _axis : Vector3, _sign : float) {
 
-	var rotateInfo : MyRotateInfo = new MyRotateInfo();
+	var rotateInfo : MyRotateInfo = new MyRotateInfo(_sign, _cube, _axis);
 
-	rotateInfo.cube = _cube;
-	rotateInfo.sign = _sign;
-	rotateInfo.axis = _axis;
+	//rotateInfo.Cube = _cube;
+	//rotateInfo.Sign = _sign;
+	//rotateInfo.Axis = _axis;
 	
 	stack.Push(rotateInfo);
 }
@@ -298,9 +314,9 @@ function revertRotate(){
 	// If the stack is empty, do nothing.
 	if (rotateInfo == null) return;
 	
-	var cubeName : String = rotateInfo.cube;
-	targetAxis = rotateInfo.axis;
-	sign = rotateInfo.sign * -1.0;
+	var cubeName : String = rotateInfo.Cube;
+	targetAxis = rotateInfo.Axis;
+	sign = rotateInfo.Sign * -1.0;
 	
 	if (cubeName == "all") {
 		initRotateAllCubes();
@@ -472,6 +488,82 @@ function toggleMenu(){
 	menuW.SetActive(isMenuActive);
 }
 
+/**
+Beck to the title scene (TODO)
+**/
+function displayInquiry(){
+	inquiryW.SetActive(true);
+}
+
+function backToTitle(){
+	Application.Quit();
+}
+
+function cancelInquiry(){
+	inquiryW.SetActive(false);
+}
+
+/**
+Save Status
+**/
+function saveStatus(){
+
+	// Create tempory stack so that the entries are not removed
+	var tmpStack : Stack = new Stack(stack);
+	
+	// Create the status object for the serialization
+	var list : List.<MyRotateInfo> = new List.<MyRotateInfo>();
+	while (tmpStack.Count > 0) {
+		var info : MyRotateInfo = tmpStack.Pop();
+		list.Add (info);
+	}
+	var status : Status = new Status("scene1", list);
+	
+	DataSerializer.WriteStatus(status);
+}
+
+/**
+Load status
+**/
+function loadStatus(){
+	// Clear the stack and reset cubes once (TODO: Error check before start)
+	stack.Clear();
+	resetCube();
+	
+	// deserialize the status
+	var status : Status = DataSerializer.ReadStatus();
+	
+	// restore the sequences
+	var list : List.<MyRotateInfo> = status.list;
+	for (var i= list.Count-1 ; i >= 0 ; i--){
+		var info : MyRotateInfo = list[i];
+		stack.Push(info);
+		restoreRotation(info);
+	}
+}
+
+/**
+Restore rotaiton sequence
+**/
+function restoreRotation(rotateInfo : MyRotateInfo){
+	var cubeName : String = rotateInfo.Cube;
+	targetAxis = rotateInfo.Axis;
+	sign = rotateInfo.Sign;
+	
+	if (cubeName == "all") {
+		initRotateAllCubes();
+		isRotation = true; // Start the rotation imidiately.
+	}
+	else {
+		targetCube = findCubeByName(cubeName);	
+		if (targetCube == null) return;
+		initRotate();
+		isRotation = true; // Start the rotation imidiately.
+	}	
+
+	rotatetarget.Rotate(targetAxis, sign * 90, Space.World);
+	isRotation = false;
+}
 
 /**
 *********************************************
