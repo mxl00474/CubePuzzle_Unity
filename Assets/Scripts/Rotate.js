@@ -60,7 +60,6 @@ private var cube_positions : List.<Vector3>;
 private var stack : Stack;
 
 // GUI
-private var isMinimize : boolean;
 private var isMenuActive : boolean;
 
 /**
@@ -74,7 +73,6 @@ function Start () {
 	//Initialize the boolean flags
 	isRotation = false;
 	isRotateByDrag = false;
-	isMinimize = false;	
 	isMenuActive = false;
 	isLocked = false;
 
@@ -501,6 +499,26 @@ function toggleMenu(){
 }
 
 /**
+Click rest button
+**/
+function click_reset(){
+	// Reset all cubes
+	resetCube();
+	// close menu
+	toggleMenu();
+}
+
+/**
+Click shuffle button
+**/
+function click_shuffle(){
+	// shuffle cubes
+	shuffle();
+	// close menu
+	toggleMenu();
+}
+
+/**
 Beck to the title scene (TODO)
 **/
 function displayInquiry(){
@@ -529,9 +547,12 @@ function saveStatus(){
 		var info : MyRotateInfo = tmpStack.Pop();
 		list.Add (info);
 	}
-	var status : Status = new Status("scene1", list);
+	var status : Status = new Status("scene1", list, mainCamera.transform.position, cameraPivot.transform.eulerAngles);
 	
 	DataSerializer.WriteStatus(status);
+
+	// close menu
+	toggleMenu();
 }
 
 /**
@@ -552,6 +573,13 @@ function loadStatus(){
 		stack.Push(info);
 		restoreRotation(info);
 	}
+	
+	// Restore camera position and angle
+	cameraPivot.transform.eulerAngles = new Vector3(status.camera_vx, status.camera_vy, status.camera_vz);
+	mainCamera.transform.position = new Vector3(status.camera_x, status.camera_y, status.camera_z);
+	
+	// close menu
+	toggleMenu();
 }
 
 /**
