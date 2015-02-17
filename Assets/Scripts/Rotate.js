@@ -150,9 +150,9 @@ Adjust position vector to the nearest integer
 **/
 function adjustPositionVector(v : Vector3){
 	var res : Vector3;
-	res.x = Mathf.RoundToInt(v.x);
-	res.y = Mathf.RoundToInt(v.y);
-	res.z = Mathf.RoundToInt(v.z);
+	res.x = Mathf.RoundToInt(v.x/0.5) * 0.5;
+	res.y = Mathf.RoundToInt(v.y/0.5) * 0.5;
+	res.z = Mathf.RoundToInt(v.z/0.5) * 0.5;
 	return res;
 }
 
