@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System;
 using JsonFx;
 
 public class DataSerializer : MonoBehaviour {
@@ -16,20 +17,20 @@ public class DataSerializer : MonoBehaviour {
 				Directory.CreateDirectory(storagePath); 
 			}
 
-			string path = storagePath + "/game_status";
+			string path = storagePath + "/status_" + s.scene;
 			Debug.Log (storagePath);
 
 			string json = JsonFx.Json.JsonWriter.Serialize(s);
 			File.WriteAllText(path, json, System.Text.Encoding.UTF8); 
 		}
-		catch (IOException e){
+		catch (Exception e){
 			//TODO
 		}
 	}
 	
-	static public Status ReadStatus() {
+	static public Status ReadStatus(string sceneName) {
 		try {
-			string path = storagePath + "/game_status";
+			string path = storagePath + "/status_" + sceneName;
 			string json = File.ReadAllText (path, System.Text.Encoding.UTF8);
 			Status s = JsonFx.Json.JsonReader.Deserialize<Status> (json);
 		
@@ -44,8 +45,8 @@ public class DataSerializer : MonoBehaviour {
 			}
 			return s;
 		}
-		catch (IOException e){
-			return null;
+		catch (Exception e){
+			return new Status();
 			//TODO
 		}
 	}

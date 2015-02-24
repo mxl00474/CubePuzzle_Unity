@@ -10,13 +10,13 @@ public class Status {
 	public List<MyRotateInfo> list = new List<MyRotateInfo>();
 
 	// Camera positions and angle
-	public float camera_x;
-	public float camera_y;
-	public float camera_z;
+	public float camera_x = 0.0f;
+	public float camera_y = -1.0f;
+	public float camera_z = 7.0f;
 
-	public float camera_vx;
-	public float camera_vy;
-	public float camera_vz;
+	public float camera_vx = 320.0f;
+	public float camera_vy = 45.0f;
+	public float camera_vz = 0;
 	
 	public Status(){
 	}

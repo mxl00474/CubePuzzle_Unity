@@ -91,6 +91,9 @@ function Start () {
 	// Hide Menu Window
 	menuW.SetActive(isMenuActive);
 	inquiryW.SetActive(false);
+	
+	// Shuffle
+	shuffle();
 }
 
 function OnEnable(){
@@ -136,6 +139,10 @@ function Update () {
 				displayInquiry();
 			}
 		}
+	}
+	
+	if (debugFlag && Input.GetKeyDown(KeyCode.Return)) {    
+    	Application.CaptureScreenshot(Application.persistentDataPath + "/screenshot.png");
 	}
 }
 
@@ -526,7 +533,8 @@ function displayInquiry(){
 }
 
 function backToTitle(){
-	Application.Quit();
+	//Application.Quit();
+	Application.LoadLevel("Title");
 }
 
 function cancelInquiry(){
@@ -547,7 +555,8 @@ function saveStatus(){
 		var info : MyRotateInfo = tmpStack.Pop();
 		list.Add (info);
 	}
-	var status : Status = new Status("scene1", list, mainCamera.transform.position, cameraPivot.transform.eulerAngles);
+	var sceneName : String = Application.loadedLevelName;
+	var status : Status = new Status(sceneName, list, mainCamera.transform.localPosition, cameraPivot.transform.eulerAngles);
 	
 	DataSerializer.WriteStatus(status);
 
@@ -564,7 +573,8 @@ function loadStatus(){
 	resetCube();
 	
 	// deserialize the status
-	var status : Status = DataSerializer.ReadStatus();
+	var sceneName : String = Application.loadedLevelName;
+	var status : Status = DataSerializer.ReadStatus(sceneName);
 	
 	// restore the sequences
 	var list : List.<MyRotateInfo> = status.list;
@@ -576,7 +586,9 @@ function loadStatus(){
 	
 	// Restore camera position and angle
 	cameraPivot.transform.eulerAngles = new Vector3(status.camera_vx, status.camera_vy, status.camera_vz);
-	mainCamera.transform.position = new Vector3(status.camera_x, status.camera_y, status.camera_z);
+	mainCamera.transform.localPosition = new Vector3(status.camera_x, status.camera_y, status.camera_z);
+	if (debugFlag) Debug.Log("x=" + status.camera_x + " ,y=" + status.camera_y + ", z=" + status.camera_z);
+
 	
 	// close menu
 	toggleMenu();
