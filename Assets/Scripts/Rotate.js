@@ -140,9 +140,11 @@ function Update () {
 			}
 		}
 	}
-	
+
+	// For Debug 
 	if (debugFlag && Input.GetKeyDown(KeyCode.Return)) {    
-    	Application.CaptureScreenshot(Application.persistentDataPath + "/screenshot.png");
+    	//Application.CaptureScreenshot(Application.persistentDataPath + "/screenshot.png"); // Get screenshot for icon
+    	isAllSolved();
 	}
 }
 
@@ -197,6 +199,7 @@ function exeRotate(speed : float){
 		rotatetarget.Rotate(targetAxis, sign * (90.0 - rotateAmount), Space.World);
 		isRotation = false;
 		adjustAllCubes(); // Adjust the cube positions and angles
+		checkCleared(); // Check if cleared
 	} else {
 		rotatetarget.Rotate(targetAxis, sign * speed, Space.World);
 		rotateAmount += speed;
@@ -432,6 +435,56 @@ function resetCube(){
 }
 
 /**
+Check if all cubes are solved
+**/
+function isAllSolved(){
+
+	var res : boolean = true;
+	
+	for (var c : GameObject in cubes){
+		if (adjustAngleVector(c.transform.eulerAngles) != Vector3.zero){
+			res = false;
+		}
+	}
+	if (debugFlag) Debug.Log(res);
+	return res;
+}
+
+/**
+Check if cleared
+**/
+function checkCleared(){
+	if (stack.Count != 0 && isAllSolved()) {
+		if (debugFlag) Debug.Log("Cleared!!");
+		//TODO implement the cleared moves
+	}
+}
+
+/**
+Restore rotaiton sequence
+**/
+function restoreRotation(rotateInfo : MyRotateInfo){
+	var cubeName : String = rotateInfo.Cube;
+	targetAxis = rotateInfo.Axis;
+	sign = rotateInfo.Sign;
+	
+	if (cubeName == "all") {
+		initRotateAllCubes();
+		isRotation = true; // Start the rotation imidiately.
+	}
+	else {
+		targetCube = findCubeByName(cubeName);	
+		if (targetCube == null) return;
+		initRotate();
+		isRotation = true; // Start the rotation imidiately.
+	}	
+
+	rotatetarget.Rotate(targetAxis, sign * 90, Space.World);
+	isRotation = false;
+}
+
+
+/**
 *********************************************
  GUI events
 *********************************************
@@ -592,29 +645,6 @@ function loadStatus(){
 	
 	// close menu
 	toggleMenu();
-}
-
-/**
-Restore rotaiton sequence
-**/
-function restoreRotation(rotateInfo : MyRotateInfo){
-	var cubeName : String = rotateInfo.Cube;
-	targetAxis = rotateInfo.Axis;
-	sign = rotateInfo.Sign;
-	
-	if (cubeName == "all") {
-		initRotateAllCubes();
-		isRotation = true; // Start the rotation imidiately.
-	}
-	else {
-		targetCube = findCubeByName(cubeName);	
-		if (targetCube == null) return;
-		initRotate();
-		isRotation = true; // Start the rotation imidiately.
-	}	
-
-	rotatetarget.Rotate(targetAxis, sign * 90, Space.World);
-	isRotation = false;
 }
 
 /**
