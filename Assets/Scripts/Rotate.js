@@ -615,7 +615,15 @@ function click_shuffle(){
 }
 
 /**
-Beck to the title scene (TODO)
+Click shuffle button
+**/
+function click_quit(){
+	displayInquiry();
+	toggleMenu();
+}
+
+/**
+Beck to the title scene
 **/
 function displayInquiry(){
 	inquiryW.SetActive(true);
