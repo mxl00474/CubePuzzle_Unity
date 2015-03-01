@@ -14,6 +14,7 @@ var mainCamera : GameObject;
 var menuW : GameObject;
 var inquiryW : GameObject;
 var lockB : GameObject;
+var clearMsgTxt : GameObject;
 
 var debugFlag : boolean;
 
@@ -62,6 +63,11 @@ private var stack : Stack;
 // GUI
 private var isMenuActive : boolean;
 
+// Animation displayed when cleared 
+private var isCleared : boolean;
+private var msgBounce : float;
+private var msgSpeed : float;
+private var msgCount : int;
 /**
 *********************************************
  Start functions
@@ -75,6 +81,7 @@ function Start () {
 	isRotateByDrag = false;
 	isMenuActive = false;
 	isLocked = false;
+	isCleared = false;
 
 	// Put all cube to cubes
 	if (cubes == null)
@@ -88,10 +95,11 @@ function Start () {
 	// Initialize the stack
 	stack = new Stack();
 	
-	// Hide Menu Window
+	// Hide Menu Window, etc
 	menuW.SetActive(isMenuActive);
 	inquiryW.SetActive(false);
-	
+	clearMsgTxt.GetComponent.<UI.Text>().enabled = false;
+
 	// Shuffle
 	shuffle();
 }
@@ -128,6 +136,9 @@ function Update () {
 	if (isRotation) {
 		exeRotate(rotateSpeed);
 	}
+	
+	// If cleared, display clear message
+	if (isCleared) clearedAnimation();
 	
 	// Menu key and back key
 	if (Application.platform == RuntimePlatform.Android){
@@ -438,11 +449,13 @@ function resetCube(){
 Check if all cubes are solved
 **/
 function isAllSolved(){
-
+	
+	var v : Vector3;
 	var res : boolean = true;
 	
+	v = adjustAngleVector(cubes[0].transform.eulerAngles);
 	for (var c : GameObject in cubes){
-		if (adjustAngleVector(c.transform.eulerAngles) != Vector3.zero){
+		if (adjustAngleVector(c.transform.eulerAngles) != v){
 			res = false;
 		}
 	}
@@ -453,13 +466,36 @@ function isAllSolved(){
 /**
 Check if cleared
 **/
-function checkCleared(){
+function checkCleared(){	
 	if (stack.Count != 0 && isAllSolved()) {
 		if (debugFlag) Debug.Log("Cleared!!");
-		//TODO implement the cleared moves
+		isCleared = true;
+		clearMsgTxt.transform.localPosition.y = 1000; //Hardcoded
+		msgBounce = 300;
+		msgSpeed = 100;
+		msgCount = 5;
+		clearMsgTxt.GetComponent.<UI.Text>().enabled = true;
 	}
 }
 
+/**
+Animation displayed when the game is cleared
+**/
+function clearedAnimation(){
+	if (clearMsgTxt.transform.localPosition.y > 0) {
+		clearMsgTxt.transform.localPosition.y -= msgSpeed;
+	} else if (msgCount > 0) {
+		clearMsgTxt.transform.localPosition.y = msgBounce;
+		msgBounce *= 0.5;
+		msgSpeed *= 0.5;
+		msgCount --;
+	} else {
+		if (debugFlag) Debug.Log("Clear Completed");
+		yield WaitForSeconds(3.0);
+		Application.LoadLevel("Title");
+		
+	}
+}
 /**
 Restore rotaiton sequence
 **/
